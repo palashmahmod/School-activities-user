@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captain Activity Entry App</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f4f7f6; padding: 15px; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        /* Login Form Styles */
+        .login-box { max-width: 400px; margin: 50px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .login-box h2 { text-align: center; margin-bottom: 20px; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn-login { background: #0d6efd; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
+
+        /* User Header Profile */
+        .profile-card { text-align: center; margin-bottom: 20px; }
+        .profile-card img { width: 90px; height: 90px; border-radius: 8px; object-fit: cover; border: 2px solid #ccc; margin-bottom: 8px; }
+        .profile-card h3 { font-size: 20px; color: #111; letter-spacing: 1px; }
+        .divider { height: 2px; background: #000; margin: 12px 0; border: none; }
+        .user-details { display: flex; justify-content: space-around; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; float: right; }
+
+        /* Table & Layout */
+        .section-title { text-align: center; margin: 15px 0 10px 0; color: #0d6efd; }
+        .date-picker-group { max-width: 250px; margin: 0 auto 15px auto; }
+        
+        .table-responsive { overflow: auto; max-height: 1000px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
+        th, td { border-bottom: 1px solid #ddd; border-right: 1px solid #ddd; padding: 8px; text-align: center; font-size: 14px; background: #fff; }
+        
+        th { position: sticky; top: 0; background: #e9ecef; z-index: 10; }
+        th:first-child, td:first-child { position: sticky; left: 0; z-index: 5; background: #f8f9fa; font-weight: bold; }
+        th:first-child { z-index: 15; background: #d6dbe0; }
+
+        .toggle-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-on { background: #198754; color: white; }
+        .btn-off { background: #dc3545; color: white; }
+        .btn-submit { background: #0d6efd; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 15px; font-weight: bold; }
+        #status { text-align: center; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="loginView" class="login-box">
+    <h2>Captain Login</h2>
+    <div class="form-group">
+        <label>User ID:</label>
+        <input type="text" id="loginUserId" placeholder="Enter User ID">
+    </div>
+    <div class="form-group">
+        <label>PIN Number:</label>
+        <input type="password" id="loginPin" placeholder="Enter PIN">
+    </div>
+    <button class="btn-login" onclick="login()">Login</button>
+    <div id="loginStatus" style="text-align:center; margin-top:10px; color:red;"></div>
+</div>
+
+<!-- APP DASHBOARD VIEW -->
+<div id="appView" class="container" style="display:none;">
+    <button class="btn-logout" onclick="logout()">Logout</button>
+    
+    <div class="profile-card">
+        <img src="photo1.jpg" alt="Profile Photo">
+        <h3>PALASH MAHMOD</h3>
+        <hr class="divider">
+        <div class="user-details">
+            <div>Class/Section: <span id="dispClass"></span></div>
+            <div>Subject: <span id="dispSubject"></span></div>
+            <div>User ID: <span id="dispUserId"></span></div>
+        </div>
+    </div>
+
+    <h3 class="section-title">Daily Activity Entry</h3>
+    <div class="form-group date-picker-group">
+        <label style="text-align:center;">Date:</label>
+        <input type="date" id="activityDate" onchange="checkAndLoadData()">
+    </div>
+
+    <div class="table-responsive" id="tableWrapper" style="display:none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll</th>
+                    <th>Name</th>
+                    <th>Attendance (2)</th>
+                    <th>Homework (3)</th>
+                    <th>Dress (3)</th>
+                    <th>Behavior (2)</th>
+                    <th>Practical (5)</th>
+                    <th>Assignment (5)</th>
+                    <th>Exam Score</th>
+                </tr>
+            </thead>
+            <tbody id="activityTbody"></tbody>
+        </table>
+    </div>
+    <button class="btn-submit" id="saveBtn" style="display:none;" onclick="saveActivityData()">Save Activities</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrdJBmGmjhwBFfXc6NL1NlJYJafQgIKIIc530aZHx_E8mkXtSOPsnpiUH4uLYau_U/exec";
+    let currentUser = null;
+    let currentStudents = [];
+    const actPoints = [2, 3, 3, 2, 5, 5];
+
+window.onload = function() {
+    const savedUser = localStorage.getItem("captainUser");
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        
+        // শিটে বর্তমান পিন ঠিক আছে কি না যাচাই করা হচ্ছে
+        fetch(`${SCRIPT_URL}?action=verifySession&userId=${encodeURIComponent(currentUser.userId)}&pin=${encodeURIComponent(currentUser.pin)}`)
+        .then(r => r.json()).then(res => {
+            if (res.valid) {
+                initDashboard();
+            } else {
+                alert("আপনার পিন নম্বর পরিবর্তন করা হয়েছে। দয়া করে নতুন পিন দিয়ে পুনরায় লগইন করুন।");
+                logout();
+            }
+        }).catch(() => {
+            // নেটওয়ার্ক সমস্যা থাকলে যেন অফলাইনে কাজ করতে সমস্যা না হয়
+            initDashboard();
+        });
+    }
+}
+
+function login() {
+    const userId = document.getElementById("loginUserId").value;
+    const pin = document.getElementById("loginPin").value;
+    if (!userId || !pin) return alert("আইডি ও পিন নাম্বার দিন");
+
+    document.getElementById("loginStatus").innerText = "Logging in...";
+    fetch(`${SCRIPT_URL}?action=loginUser&userId=${encodeURIComponent(userId)}&pin=${encodeURIComponent(pin)}`)
+    .then(r => r.json()).then(res => {
+        if (res.success) {
+            currentUser = res.user;
+            currentUser.pin = pin; // পিন সেভ রাখা হচ্ছে যেন পরবর্তীতে মিলিয়ে নেওয়া যায়
+            localStorage.setItem("captainUser", JSON.stringify(currentUser));
+            document.getElementById("loginStatus").innerText = "";
+            initDashboard();
+        } else {
+            document.getElementById("loginStatus").innerText = res.message || "Invalid credentials";
+        }
+    });
+}
+
+    function logout() {
+        localStorage.removeItem("captainUser");
+        currentUser = null;
+        document.getElementById("appView").style.display = "none";
+        document.getElementById("loginView").style.display = "block";
+    }
+
+    function initDashboard() {
+        document.getElementById("loginView").style.display = "none";
+        document.getElementById("appView").style.display = "block";
+
+        document.getElementById("dispClass").innerText = currentUser.className;
+        document.getElementById("dispSubject").innerText = currentUser.subject;
+        document.getElementById("dispUserId").innerText = currentUser.userId;
+
+        document.getElementById('activityDate').valueAsDate = new Date();
+        checkAndLoadData();
+    }
+
+    function checkAndLoadData() {
+        if (!currentUser) return;
+        const date = document.getElementById("activityDate").value;
+        if (!date) return;
+
+        document.getElementById("status").innerText = "Loading...";
+
+        fetch(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(currentUser.className)}`)
+        .then(r => r.json()).then(res => {
+            currentStudents = res.students || [];
+            if (currentStudents.length === 0) {
+                document.getElementById("status").innerText = "No students found for this class.";
+                document.getElementById("tableWrapper").style.display = "none";
+                document.getElementById("saveBtn").style.display = "none";
+                return;
+            }
+
+            fetch(`${SCRIPT_URL}?action=getActivity&className=${encodeURIComponent(currentUser.className)}&date=${date}`)
+            .then(r => r.json()).then(actRes => {
+                document.getElementById("status").innerText = "";
+                renderTable(actRes.found ? actRes.pointsMatrix : null);
+            });
+        });
+    }
+
+    function renderTable(savedMatrix) {
+        const tbody = document.getElementById("activityTbody");
+        tbody.innerHTML = "";
+
+        currentStudents.forEach((st, sIdx) => {
+            let rowHtml = `<tr><td>${st.roll}</td><td>${st.name}</td>`;
+            for (let a = 0; a < 6; a++) {
+                let isOn = savedMatrix ? (savedMatrix[a][sIdx] > 0) : false;
+                rowHtml += `<td><button class="toggle-btn ${isOn ? 'btn-on' : 'btn-off'}" onclick="toggleBtn(this)" data-pt="${actPoints[a]}">${isOn ? 'ON' : 'OFF'}</button></td>`;
+            }
+            let examVal = savedMatrix ? savedMatrix[6][sIdx] : 0;
+            rowHtml += `<td><input type="number" class="exam-score" value="${examVal}" min="0" style="width:70px; text-align:center;"></td></tr>`;
+            tbody.innerHTML += rowHtml;
+        });
+
+        document.getElementById("tableWrapper").style.display = "block";
+        document.getElementById("saveBtn").style.display = "block";
+    }
+
+    function toggleBtn(btn) {
+        if (btn.classList.contains("btn-on")) {
+            btn.classList.remove("btn-on");
+            btn.classList.add("btn-off");
+            btn.innerText = "OFF";
+        } else {
+            btn.classList.remove("btn-off");
+            btn.classList.add("btn-on");
+            btn.innerText = "ON";
+        }
+    }
+
+    function saveActivityData() {
+        const date = document.getElementById("activityDate").value;
+        const rows = document.querySelectorAll("#activityTbody tr");
+        const records = [];
+
+        rows.forEach(row => {
+            const btns = row.querySelectorAll(".toggle-btn");
+            const points = [];
+            btns.forEach(b => {
+                points.push(b.classList.contains("btn-on") ? parseInt(b.dataset.pt) : 0);
+            });
+            const examPts = parseInt(row.querySelector(".exam-score").value) || 0;
+            points.push(examPts);
+
+            records.push({ points: points });
+        });
+
+        document.getElementById("status").innerText = "Saving Activities...";
+        fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "saveActivity", className: currentUser.className, date: date, records: records })
+        }).then(r => r.json()).then(res => {
+            document.getElementById("status").innerText = "Activities Saved Successfully!";
+        });
+    }
+</script>
+</body>
+</html>
