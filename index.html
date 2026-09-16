@@ -51,6 +51,7 @@
     <h2>Captain Login</h2>
     <div class="form-group">
         <label>User ID:</label>
+
         <input type="text" id="loginUserId" placeholder="Enter User ID">
     </div>
     <div class="form-group">
@@ -100,6 +101,7 @@
             <tbody id="activityTbody"></tbody>
         </table>
     </div>
+
     <button class="btn-submit" id="saveBtn" style="display:none;" onclick="saveActivityData()">Save Activities</button>
     <div id="status"></div>
 </div>
@@ -110,46 +112,47 @@
     let currentStudents = [];
     const actPoints = [2, 3, 3, 2, 5, 5];
 
-window.onload = function() {
-    const savedUser = localStorage.getItem("captainUser");
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        
-        // শিটে বর্তমান পিন ঠিক আছে কি না যাচাই করা হচ্ছে
-        fetch(`${SCRIPT_URL}?action=verifySession&userId=${encodeURIComponent(currentUser.userId)}&pin=${encodeURIComponent(currentUser.pin)}`)
+    window.onload = function() {
+        const savedUser = localStorage.getItem("captainUser");
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            
+            // শিটে বর্তমান পিন ঠিক আছে কি না যাচাই করা হচ্ছে
+            fetch(`${SCRIPT_URL}?action=verifySession&userId=${encodeURIComponent(currentUser.userId)}&pin=${encodeURIComponent(currentUser.pin)}`)
+            .then(r => r.json()).then(res => {
+                if (res.valid) {
+                    initDashboard();
+                } else {
+                    alert("আপনার পিন নম্বর পরিবর্তন করা হয়েছে। দয়া করে নতুন পিন দিয়ে পুনরায় লগইন করুন।");
+                    logout();
+                }
+            }).catch(() => {
+                // নেটওয়ার্ক সমস্যা থাকলে যেন অফলাইনে কাজ করতে সমস্যা না হয়
+                initDashboard();
+            });
+        }
+    }
+
+    function login() {
+        const userId = document.getElementById("loginUserId").value;
+        const pin = document.getElementById("loginPin").value;
+        if (!userId || !pin) return alert("আইডি ও পিন নাম্বার দিন");
+
+        document.getElementById("loginStatus").innerText = "Logging in...";
+
+        fetch(`${SCRIPT_URL}?action=loginUser&userId=${encodeURIComponent(userId)}&pin=${encodeURIComponent(pin)}`)
         .then(r => r.json()).then(res => {
-            if (res.valid) {
+            if (res.success) {
+                currentUser = res.user;
+                currentUser.pin = pin; // পিন সেভ রাখা হচ্ছে যেন পরবর্তীতে মিলিয়ে নেওয়া যায়
+                localStorage.setItem("captainUser", JSON.stringify(currentUser));
+                document.getElementById("loginStatus").innerText = "";
                 initDashboard();
             } else {
-                alert("আপনার পিন নম্বর পরিবর্তন করা হয়েছে। দয়া করে নতুন পিন দিয়ে পুনরায় লগইন করুন।");
-                logout();
+                document.getElementById("loginStatus").innerText = res.message || "Invalid credentials";
             }
-        }).catch(() => {
-            // নেটওয়ার্ক সমস্যা থাকলে যেন অফলাইনে কাজ করতে সমস্যা না হয়
-            initDashboard();
         });
     }
-}
-
-function login() {
-    const userId = document.getElementById("loginUserId").value;
-    const pin = document.getElementById("loginPin").value;
-    if (!userId || !pin) return alert("আইডি ও পিন নাম্বার দিন");
-
-    document.getElementById("loginStatus").innerText = "Logging in...";
-    fetch(`${SCRIPT_URL}?action=loginUser&userId=${encodeURIComponent(userId)}&pin=${encodeURIComponent(pin)}`)
-    .then(r => r.json()).then(res => {
-        if (res.success) {
-            currentUser = res.user;
-            currentUser.pin = pin; // পিন সেভ রাখা হচ্ছে যেন পরবর্তীতে মিলিয়ে নেওয়া যায়
-            localStorage.setItem("captainUser", JSON.stringify(currentUser));
-            document.getElementById("loginStatus").innerText = "";
-            initDashboard();
-        } else {
-            document.getElementById("loginStatus").innerText = res.message || "Invalid credentials";
-        }
-    });
-}
 
     function logout() {
         localStorage.removeItem("captainUser");
@@ -166,8 +169,21 @@ function login() {
         document.getElementById("dispSubject").innerText = currentUser.subject;
         document.getElementById("dispUserId").innerText = currentUser.userId;
 
-        document.getElementById('activityDate').valueAsDate = new Date();
-        checkAndLoadData();
+        // সার্ভার টাইম জোন থেকে লাইভ তারিখ নিয়ে আসা হচ্ছে
+        fetch(`${SCRIPT_URL}?action=getTodayDate`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.today) {
+                document.getElementById('activityDate').value = res.today;
+            } else {
+                document.getElementById('activityDate').valueAsDate = new Date();
+            }
+            checkAndLoadData();
+        })
+        .catch(() => {
+            document.getElementById('activityDate').valueAsDate = new Date();
+            checkAndLoadData();
+        });
     }
 
     function checkAndLoadData() {
@@ -180,6 +196,7 @@ function login() {
         fetch(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(currentUser.className)}`)
         .then(r => r.json()).then(res => {
             currentStudents = res.students || [];
+
             if (currentStudents.length === 0) {
                 document.getElementById("status").innerText = "No students found for this class.";
                 document.getElementById("tableWrapper").style.display = "none";
@@ -201,12 +218,15 @@ function login() {
 
         currentStudents.forEach((st, sIdx) => {
             let rowHtml = `<tr><td>${st.roll}</td><td>${st.name}</td>`;
+
             for (let a = 0; a < 6; a++) {
                 let isOn = savedMatrix ? (savedMatrix[a][sIdx] > 0) : false;
                 rowHtml += `<td><button class="toggle-btn ${isOn ? 'btn-on' : 'btn-off'}" onclick="toggleBtn(this)" data-pt="${actPoints[a]}">${isOn ? 'ON' : 'OFF'}</button></td>`;
             }
+
             let examVal = savedMatrix ? savedMatrix[6][sIdx] : 0;
             rowHtml += `<td><input type="number" class="exam-score" value="${examVal}" min="0" style="width:70px; text-align:center;"></td></tr>`;
+
             tbody.innerHTML += rowHtml;
         });
 
@@ -234,9 +254,11 @@ function login() {
         rows.forEach(row => {
             const btns = row.querySelectorAll(".toggle-btn");
             const points = [];
+
             btns.forEach(b => {
                 points.push(b.classList.contains("btn-on") ? parseInt(b.dataset.pt) : 0);
             });
+
             const examPts = parseInt(row.querySelector(".exam-score").value) || 0;
             points.push(examPts);
 
@@ -244,6 +266,7 @@ function login() {
         });
 
         document.getElementById("status").innerText = "Saving Activities...";
+
         fetch(SCRIPT_URL, {
             method: "POST",
             body: JSON.stringify({ action: "saveActivity", className: currentUser.className, date: date, records: records })
