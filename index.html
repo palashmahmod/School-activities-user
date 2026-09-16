@@ -51,7 +51,6 @@
     <h2>Captain Login</h2>
     <div class="form-group">
         <label>User ID:</label>
-
         <input type="text" id="loginUserId" placeholder="Enter User ID">
     </div>
     <div class="form-group">
@@ -110,6 +109,7 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrdJBmGmjhwBFfXc6NL1NlJYJafQgIKIIc530aZHx_E8mkXtSOPsnpiUH4uLYau_U/exec";
     let currentUser = null;
     let currentStudents = [];
+    let todayDateStr = ""; // আজকের দিন সংরক্ষণ রাখার জন্য ভেরিয়েবল
     const actPoints = [2, 3, 3, 2, 5, 5];
 
     window.onload = function() {
@@ -117,7 +117,6 @@
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
             
-            // শিটে বর্তমান পিন ঠিক আছে কি না যাচাই করা হচ্ছে
             fetch(`${SCRIPT_URL}?action=verifySession&userId=${encodeURIComponent(currentUser.userId)}&pin=${encodeURIComponent(currentUser.pin)}`)
             .then(r => r.json()).then(res => {
                 if (res.valid) {
@@ -127,7 +126,6 @@
                     logout();
                 }
             }).catch(() => {
-                // নেটওয়ার্ক সমস্যা থাকলে যেন অফলাইনে কাজ করতে সমস্যা না হয়
                 initDashboard();
             });
         }
@@ -144,7 +142,7 @@
         .then(r => r.json()).then(res => {
             if (res.success) {
                 currentUser = res.user;
-                currentUser.pin = pin; // পিন সেভ রাখা হচ্ছে যেন পরবর্তীতে মিলিয়ে নেওয়া যায়
+                currentUser.pin = pin;
                 localStorage.setItem("captainUser", JSON.stringify(currentUser));
                 document.getElementById("loginStatus").innerText = "";
                 initDashboard();
@@ -169,25 +167,54 @@
         document.getElementById("dispSubject").innerText = currentUser.subject;
         document.getElementById("dispUserId").innerText = currentUser.userId;
 
-        // সার্ভার টাইম জোন থেকে লাইভ তারিখ নিয়ে আসা হচ্ছে
+        // সার্ভার থেকে আজকের তারিখ ফেচ করে নিয়ে আসা
         fetch(`${SCRIPT_URL}?action=getTodayDate`)
         .then(r => r.json())
         .then(res => {
             if (res.today) {
-                document.getElementById('activityDate').value = res.today;
+                todayDateStr = res.today;
             } else {
-                document.getElementById('activityDate').valueAsDate = new Date();
+                todayDateStr = new Date().toISOString().split('T')[0];
             }
+            // ইনপুটে আজকের তারিখ বসানো এবং সিলেকশন সীমানাবদ্ধ করে দেওয়া
+            const dateInput = document.getElementById('activityDate');
+            dateInput.value = todayDateStr;
+            dateInput.min = todayDateStr;
+            dateInput.max = todayDateStr;
+
             checkAndLoadData();
         })
         .catch(() => {
-            document.getElementById('activityDate').valueAsDate = new Date();
+            todayDateStr = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('activityDate');
+            dateInput.value = todayDateStr;
+            dateInput.min = todayDateStr;
+            dateInput.max = todayDateStr;
+
             checkAndLoadData();
         });
     }
 
+    // তারিখ পরীক্ষা করার ফাংশন
+    function validateDateLock() {
+        const selectedDate = document.getElementById("activityDate").value;
+        if (todayDateStr && selectedDate !== todayDateStr) {
+            alert("শুধুমাত্র আজকের তারিখেই অ্যাক্টিভিটি এন্ট্রি করা সম্ভব। পূর্ববর্তী বা পরবর্তী তারিখে এন্ট্রি অনুমোদিত নয়।");
+            document.getElementById("activityDate").value = todayDateStr;
+            document.getElementById("tableWrapper").style.display = "none";
+            document.getElementById("saveBtn").style.display = "none";
+            document.getElementById("status").innerText = "";
+            return false;
+        }
+        return true;
+    }
+
     function checkAndLoadData() {
         if (!currentUser) return;
+        
+        // তারিখ পরিবর্তন লক করা চেক
+        if (!validateDateLock()) return;
+
         const date = document.getElementById("activityDate").value;
         if (!date) return;
 
@@ -247,6 +274,9 @@
     }
 
     function saveActivityData() {
+        // সেভ করার পূর্বে পুনরায় চেক করা হচ্ছে
+        if (!validateDateLock()) return;
+
         const date = document.getElementById("activityDate").value;
         const rows = document.querySelectorAll("#activityTbody tr");
         const records = [];
